@@ -1,0 +1,367 @@
+#stayops/graphql/schema.py
+schema {
+  query: StayOpsQuery
+  mutation: StayOpsMutation
+}
+
+# -------------------------------------------------------------------
+# SCALARS
+# -------------------------------------------------------------------
+
+scalar DateTime
+scalar UUID
+scalar Decimal
+
+# -------------------------------------------------------------------
+# AUDIT & MULTI-TENANCY
+# -------------------------------------------------------------------
+
+interface Auditable {
+  id: ID!
+  tenantId: UUID!
+  createdAt: DateTime!
+  createdBy: UUID!
+  updatedAt: DateTime
+  updatedBy: UUID
+  deletedAt: DateTime
+  deletedBy: UUID
+  isDeleted: Boolean!
+}
+
+# -------------------------------------------------------------------
+# ENUMS — CORE FSM & CATEGORISATION
+# -------------------------------------------------------------------
+
+enum BookingPlatform {
+  AIRBNB
+  BOOKING
+}
+
+enum BookingStatus {
+  SCHEDULED
+  CHECKED_OUT
+  READY
+}
+
+enum TaskType {
+  CLEANING
+  LAUNDRY
+  INSPECTION
+  MAINTENANCE
+}
+
+enum TaskStatus {
+  PENDING
+  ASSIGNED
+  IN_PROGRESS
+  DONE
+  FAILED
+}
+
+enum StaffRole {
+  CLEANER
+  SUPERVISOR
+  MAINTENANCE
+}
+
+"""
+Employment relationship with the operator.
+Used for cost modelling, availability guarantees, and SLA risk.
+"""
+enum StaffCategory {
+  PERMANENT
+  AD_HOC
+}
+
+"""
+Defines how a staff member is allocated to properties operationally.
+"""
+enum DutyAllocationType {
+  FIXED
+  ROTATIONAL
+  AD_HOC
+}
+
+enum InventoryCategory {
+  TOILETRIES
+  LINEN
+}
+
+enum IncidentSeverity {
+  MINOR
+  MODERATE
+  CRITICAL
+}
+
+enum IncidentStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+}
+
+# -------------------------------------------------------------------
+# DOMAIN ENTITIES
+# -------------------------------------------------------------------
+
+type Booking implements Auditable {
+  id: ID!
+  tenantId: UUID!
+  propertyId: UUID!
+
+  platform: BookingPlatform!
+  guestName: String
+
+  checkIn: DateTime!
+  checkOut: DateTime!
+  actualCheckout: DateTime
+
+  status: BookingStatus!
+
+  createdAt: DateTime!
+  createdBy: UUID!
+  updatedAt: DateTime
+  updatedBy: UUID
+  deletedAt: DateTime
+  deletedBy: UUID
+  isDeleted: Boolean!
+}
+
+type Task implements Auditable {
+  id: ID!
+  tenantId: UUID!
+  propertyId: UUID!
+  bookingId: ID
+
+  type: TaskType!
+  status: TaskStatus!
+
+  assignedTo: ID
+  etaMinutes: Int
+  priority: Int
+
+  startedAt: DateTime
+  completedAt: DateTime
+
+  createdAt: DateTime!
+  createdBy: UUID!
+  updatedAt: DateTime
+  updatedBy: UUID
+  deletedAt: DateTime
+  deletedBy: UUID
+  isDeleted: Boolean!
+}
+
+type Staff implements Auditable {
+  id: ID!
+  tenantId: UUID!
+
+  fullName: String!
+  role: StaffRole!
+
+  """
+  Employment classification.
+  """
+  category: StaffCategory!
+
+  """
+  Primary operational allocation model.
+  """
+  dutyAllocationType: DutyAllocationType!
+
+  """
+  Explicit property bindings for FIXED or ROTATIONAL models.
+  Empty for pure AD_HOC staff.
+  """
+  allocatedPropertyIds: [UUID!]!
+
+  availabilityWindows: [AvailabilityWindow!]!
+  rating: Decimal
+
+  active: Boolean!
+
+  createdAt: DateTime!
+  createdBy: UUID!
+  updatedAt: DateTime
+  updatedBy: UUID
+  deletedAt: DateTime
+  deletedBy: UUID
+  isDeleted: Boolean!
+}
+
+type AvailabilityWindow {
+  dayOfWeek: Int!
+  startTime: String!
+  endTime: String!
+}
+
+type InventoryItem implements Auditable {
+  id: ID!
+  tenantId: UUID!
+  propertyId: UUID!
+
+  category: InventoryCategory!
+  name: String!
+
+  currentQty: Int!
+  minThreshold: Int!
+
+  createdAt: DateTime!
+  createdBy: UUID!
+  updatedAt: DateTime
+  updatedBy: UUID
+  deletedAt: DateTime
+  deletedBy: UUID
+  isDeleted: Boolean!
+}
+
+type Incident implements Auditable {
+  id: ID!
+  tenantId: UUID!
+  propertyId: UUID!
+  bookingId: ID
+
+  severity: IncidentSeverity!
+  status: IncidentStatus!
+
+  description: String!
+  reportedBy: UUID!
+
+  resolvedAt: DateTime
+
+  createdAt: DateTime!
+  createdBy: UUID!
+  updatedAt: DateTime
+  updatedBy: UUID
+  deletedAt: DateTime
+  deletedBy: UUID
+  isDeleted: Boolean!
+}
+
+type PerformanceMetrics {
+  propertyId: UUID!
+
+  avgTurnoverTime: Decimal!
+  failureRate: Decimal!
+  sameDaySuccess: Decimal!
+}
+
+# -------------------------------------------------------------------
+# FILTER INPUTS
+# -------------------------------------------------------------------
+
+input BookingFilter {
+  propertyId: UUID
+  platform: BookingPlatform
+  status: BookingStatus
+  fromDate: DateTime
+  toDate: DateTime
+  includeDeleted: Boolean = false
+}
+
+input TaskFilter {
+  propertyId: UUID
+  bookingId: ID
+  type: TaskType
+  status: TaskStatus
+  assignedTo: ID
+  includeDeleted: Boolean = false
+}
+
+input StaffFilter {
+  role: StaffRole
+  category: StaffCategory
+  dutyAllocationType: DutyAllocationType
+  propertyId: UUID
+  active: Boolean
+  includeDeleted: Boolean = false
+}
+
+input IncidentFilter {
+  propertyId: UUID
+  severity: IncidentSeverity
+  status: IncidentStatus
+  includeDeleted: Boolean = false
+}
+
+# -------------------------------------------------------------------
+# MUTATION INPUTS (IDEMPOTENT)
+# -------------------------------------------------------------------
+
+input ConfirmCheckoutInput {
+  bookingId: ID!
+  actualCheckout: DateTime!
+  idempotencyKey: UUID!
+}
+
+input AssignTaskInput {
+  taskId: ID!
+  staffId: ID!
+  idempotencyKey: UUID!
+}
+
+input ReportIncidentInput {
+  propertyId: UUID!
+  bookingId: ID
+  severity: IncidentSeverity!
+  description: String!
+  idempotencyKey: UUID!
+}
+
+input UpdateInventoryInput {
+  inventoryItemId: ID!
+  quantityDelta: Int!
+  reason: String
+  idempotencyKey: UUID!
+}
+
+# -------------------------------------------------------------------
+# PAYLOADS
+# -------------------------------------------------------------------
+
+type BookingPayload {
+  booking: Booking
+}
+
+type TaskPayload {
+  task: Task
+}
+
+type IncidentPayload {
+  incident: Incident
+}
+
+type InventoryPayload {
+  inventoryItem: InventoryItem
+}
+
+# -------------------------------------------------------------------
+# ROOT QUERY
+# -------------------------------------------------------------------
+
+type StayOpsQuery {
+  booking(id: ID!): Booking
+  bookings(filter: BookingFilter): [Booking!]!
+
+  task(id: ID!): Task
+  tasks(filter: TaskFilter): [Task!]!
+
+  staff(id: ID!): Staff
+  staffList(filter: StaffFilter): [Staff!]!
+
+  inventory(propertyId: UUID!): [InventoryItem!]!
+
+  incidents(filter: IncidentFilter): [Incident!]!
+
+  performance(propertyId: UUID!): PerformanceMetrics
+}
+
+# -------------------------------------------------------------------
+# ROOT MUTATION
+# -------------------------------------------------------------------
+
+type StayOpsMutation {
+  confirmCheckout(input: ConfirmCheckoutInput!): BookingPayload!
+  assignTask(input: AssignTaskInput!): TaskPayload!
+  reportIncident(input: ReportIncidentInput!): IncidentPayload!
+  updateInventory(input: UpdateInventoryInput!): InventoryPayload!
+}
