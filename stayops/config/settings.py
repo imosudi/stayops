@@ -2,7 +2,17 @@
 
 import os
 
+from stayops.config.app_secrets import stayops_dbuser, stayops_dbpassword, stayops_dbhost, stayops_dbport, stayops_dbname
+# print(stayops_dbuser)
+# print(stayops_dbpassword)
+# print(stayops_dbhost)
+# print(stayops_dbport)
+# print(stayops_dbname)
+
 DATABASE_URI = os.getenv(
     "DATABASE_URI",
-    "postgresql://stayops:stayops@localhost:5432/stayops"
+    f"postgresql://{stayops_dbuser}:{stayops_dbpassword}@{stayops_dbhost}:{stayops_dbport}/{stayops_dbname}"
+    #"sqlite:///stayops.db"
+
 )
+

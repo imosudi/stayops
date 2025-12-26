@@ -1,32 +1,8 @@
-# stayops/graphql/schema.py
-
 import graphene
-
-class StayOpsQuery(graphene.ObjectType):
-    health = graphene.String(required=True)
-
-    def resolve_health(root, info):
-        return "OK"
+from stayops.graphql.queries import Query
+from stayops.graphql.mutations import Mutation
 
 schema = graphene.Schema(
-    query=StayOpsQuery
+    query=Query,
+    mutation=Mutation
 )
-
-'''# stayops/graphql/schema.py
-
-import graphene
-
-class StayOpsQuery(graphene.ObjectType):
-    health = graphene.String()
-
-    def resolve_health(root, info):
-        return "OK"
-
-class StayOpsMutation(graphene.ObjectType):
-    pass
-
-schema = graphene.Schema(
-    query=StayOpsQuery,
-    mutation=StayOpsMutation
-)
-'''
