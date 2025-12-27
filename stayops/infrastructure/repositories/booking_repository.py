@@ -1,4 +1,3 @@
-# stayops/infrastructure/repositories/base.py
 from stayops.domain.aggregates.booking import Booking
 
 

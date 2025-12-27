@@ -1,25 +1,24 @@
 import graphene
-from stayops.domain.aggregates.booking import Booking
-from stayops.graphql.types.base import AuditableObjectType
-from stayops.graphql.interfaces import AuditableInterface
+from stayops.graphql.enums.booking import (
+    BookingStatusEnum,
+    BookingPlatformEnum,
+)
 
+class CreateBookingInput(graphene.InputObjectType):
+    """
+    Input contract for creating a booking.
+    Domain invariants are enforced in the mutation, not here.
+    """
 
-class BookingPlatformEnum(graphene.Enum):
-    AIRBNB = "AIRBNB"
-    BOOKING = "BOOKING"
+    tenant_id = graphene.UUID(required=True)
+    property_id = graphene.UUID(required=True)
 
-class BookingStatusEnum(graphene.Enum):
-    SCHEDULED = "SCHEDULED"
-    CHECKED_OUT = "CHECKED_OUT"
-    READY = "READY"
+    platform = BookingPlatformEnum(required=True)
 
-class BookingType(AuditableObjectType):
-    class Meta:
-        model = Booking
-        load_instance = True
-
-"""class BookingType(AuditableObjectType):
-    class Meta:
-        model = Booking
-        interfaces = (AuditableInterface, graphene.relay.Node)"""
-
+    check_in = graphene.DateTime(required=True)
+    check_out = graphene.DateTime(required=True)
+    
+class BookingType(graphene.ObjectType):
+    id = graphene.UUID()
+    status = BookingStatusEnum(required=True)
+    platform = BookingPlatformEnum(required=True)
